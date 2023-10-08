@@ -40,8 +40,8 @@ if (!email || !senha) {
 }
 
 try {
-    const validarUsuario = `SELECT * FROM usuarios WHERE email = $1`;
-    const usuarioValidado = await pool.query(validarUsuario, [email]);
+    const query = `SELECT * FROM usuarios WHERE email = $1`;
+    const usuarioValidado = await pool.query(query, [email]);
 
     if (usuarioValidado.rowCount < 1) {
         return res.status(400).json({ mensagem: 'Usuário e/ou senha inválido(s).' });
@@ -66,7 +66,22 @@ try {
 };
 
 const detalharUsuario = async (req, res) => {
+const {id: tokenId} = req.usuario;
 
+try {
+    const query = `SELECT * FROM usuarios WHERE id = $1`;
+    const { rows, rowCount } = await pool.query(query, [tokenId]);
+
+    if (rowCount < 1) {
+        return res.status(401).json({ mensagem: 'Para acessar este recurso um token de autenticação deve ser enviado.' });
+    }
+
+    const { senha: _, ...usuario } = rows[0]
+
+    return res.status(200).json(usuario);
+} catch (error) {
+    return res.status(500).json({ mensagem: 'Erro interno do servidor' });
+}
 };
 
 const editarUsuario = async (req, res) => {
