@@ -18,13 +18,13 @@ try {
         return res.status(400).json({ mensagem: 'Já existe usuário cadastrado com o e-mail informado.' });
     }
 
-    const query = `INSERT INTO usuarios (nome, email, senha) VALUES ($1, $2, $3) returning *`;
+    const cadastrarNovoUsuario = `INSERT INTO usuarios (nome, email, senha) VALUES ($1, $2, $3) returning *`;
     const senhaCriptografada = await bcrypt.hash(senha, 10);
     const valores = [nome, email, senhaCriptografada]
 
-    const novoUsuario = await pool.query(query, valores);
+    const { rows, rowCount } = await pool.query(cadastrarNovoUsuario, valores);
 
-    const { senha: _, ...usuario } = novoUsuario.rows[0];
+    const { senha: _, ...usuario } = rows[0];
 
     return res.status(201).json(usuario);
 } catch (error) {
@@ -40,8 +40,8 @@ if (!email || !senha) {
 }
 
 try {
-    const query = `SELECT * FROM usuarios WHERE email = $1`;
-    const usuarioValidado = await pool.query(query, [email]);
+    const validarUsuario = `SELECT * FROM usuarios WHERE email = $1`;
+    const usuarioValidado = await pool.query(validarUsuario, [email]);
 
     if (usuarioValidado.rowCount < 1) {
         return res.status(400).json({ mensagem: 'Usuário e/ou senha inválido(s).' });
@@ -69,8 +69,8 @@ const detalharUsuario = async (req, res) => {
 const {id: tokenId} = req.usuario;
 
 try {
-    const query = `SELECT * FROM usuarios WHERE id = $1`;
-    const { rows, rowCount } = await pool.query(query, [tokenId]);
+    const validarTokenId = `SELECT * FROM usuarios WHERE id = $1`;
+    const { rows, rowCount } = await pool.query(validarTokenId, [tokenId]);
 
     if (rowCount < 1) {
         return res.status(401).json({ mensagem: 'Para acessar este recurso um token de autenticação deve ser enviado.' });
@@ -85,7 +85,34 @@ try {
 };
 
 const editarUsuario = async (req, res) => {
+const {nome, email, senha} = req.body;
+const {id: tokenId} = req.usuario;
 
+if (!nome || !email || !senha) {
+    return res.status(400).json({ mensagem: 'Todos os campos são obrigatórios!' });
+}
+
+try {
+    const validarTokenId = `SELECT * FROM usuarios WHERE id = $1`;
+    const { rows, rowCount } = await pool.query(validarTokenId, [tokenId]);
+    
+    if (rowCount < 1) {
+        return res.status(401).json({ mensagem: 'Para acessar este recurso um token de autenticação deve ser enviado.' });
+    }
+    
+    if (email === rows[0].email) {
+        return res.status(400).json({ mensagem: 'O e-mail informado já existe.' });
+    }
+
+    const atualizarUsuario = `UPDATE usuarios SET nome = $1, email = $2, senha = $3 WHERE id = $4 RETURNING *`;
+    const senhaCriptografada = await bcrypt.hash(senha, 10);
+    const valores = [nome, email, senhaCriptografada, tokenId];
+    await pool.query(atualizarUsuario, valores);
+
+    return res.status(204).send();
+} catch (error) {
+    return res.status(500).json({ mensagem: 'Erro interno do servidor' });
+}
 };
 
 module.exports = {
