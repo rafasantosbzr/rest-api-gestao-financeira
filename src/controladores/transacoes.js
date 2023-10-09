@@ -2,10 +2,17 @@ const pool = require('../conexao');
 
 const listarTransacoes = async (req, res) => {
     const { id: tokenId } = req.usuario;
+    const { filtro } = req.query
 
     try {
         const obterTransacoes = `SELECT * FROM transacoes WHERE usuario_id = $1`;
         const { rows: transacoes } = await pool.query(obterTransacoes, [tokenId]);
+
+        if (filtro) {
+            const filtrarTransacoes = `SELECT * FROM transacoes WHERE usuario_id = $1 AND descricao = $2`;
+            const { rows: transacoesFiltradas }  = await pool.query(filtrarTransacoes, [tokenId, filtro]);
+            return res.status(200).json(transacoesFiltradas);
+            }
     
         return res.status(200).json(transacoes);        
     } catch (error) {
@@ -23,7 +30,7 @@ const detalharTransacao = async (req, res) => {
 
         if (rowCount < 1) {
              return res.status(400).json({ mensagem: 'Transação não encontrada.' });
-}
+        }
 
     return res.status(200).json(transacao[0]);
 } catch (error) {
@@ -131,10 +138,6 @@ const obterExtrato = async (req, res) => {
 
         const querySaidas = `SELECT * FROM transacoes WHERE usuario_id = $1 AND tipo = 'saida'`;
         const listagemSaidas = await pool.query(querySaidas, [tokenId]);
-
-        // if (listagemEntradas.rowCount < 1 || listagemSaidas.rowCount < 1) {
-        //     return res.status(200).json(saldo);
-        // }
 
         const entrada = listagemEntradas.rows.reduce((acumulador, elementoAtual) => acumulador + elementoAtual.valor, saldo);
         const saida = listagemSaidas.rows.reduce((acumulador, elementoAtual) => acumulador + elementoAtual.valor, saldo);
