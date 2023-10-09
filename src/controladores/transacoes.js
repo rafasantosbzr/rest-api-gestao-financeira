@@ -144,7 +144,6 @@ const obterExtrato = async (req, res) => {
 
         return res.status(200).json({entrada, saida});
     } catch (error) {
-        console.log(error.message);
         return res.status(500).json({ mensagem: 'Erro interno do servidor.' });
     }
 };
