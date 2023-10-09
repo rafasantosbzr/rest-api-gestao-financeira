@@ -14,18 +14,18 @@ const listarTransacoes = async (req, res) => {
 };
 
 const detalharTransacao = async (req, res) => {
-const { id: tokenId } = req.usuario;
-const { id } = req.params;
+    const { id: tokenId } = req.usuario;
+    const { id } = req.params;
 
-try {
-const validarTransacao = `SELECT * FROM transacoes WHERE id = $1 AND usuario_id = $2`;
-const { rows: transacao, rowCount } = await pool.query(validarTransacao, [id, tokenId]);
+    try {
+        const validarTransacao = `SELECT * FROM transacoes WHERE id = $1 AND usuario_id = $2`;
+        const { rows: transacao, rowCount } = await pool.query(validarTransacao, [id, tokenId]);
 
-if (rowCount < 1) {
-    return res.status(400).json({ mensagem: 'Transação não encontrada.' });
+        if (rowCount < 1) {
+             return res.status(400).json({ mensagem: 'Transação não encontrada.' });
 }
 
-return res.status(200).json(transacao[0]);
+    return res.status(200).json(transacao[0]);
 } catch (error) {
     return res.status(500).json({ mensagem: 'Erro interno do servidor.' });
 }
@@ -100,13 +100,51 @@ const editarTransacao = async (req, res) => {
 };
 
 const removerTransacao = async (req, res) => {
+    const { id: tokenId } = req.usuario;
+    const { id } = req.params;
 
+    try {
+        const validarTransacao = `SELECT * FROM transacoes WHERE id = $1 AND usuario_id = $2`;
+        const { rows, rowCount } = await pool.query(validarTransacao, [id, tokenId]);
+        
+        if (rowCount < 1) {
+            return res.status(400).json({ mensagem: 'Transação não encontrada.' });
+        }
+
+        const excluirTransacao = `DELETE FROM transacoes WHERE id = $1 AND usuario_id = $2`;
+        const transacaoExcluida = await pool.query(excluirTransacao, [id, tokenId]);
+
+        return res.status(204).send();
+    } catch (error) {
+        return res.status(500).json({ mensagem: 'Erro interno do servidor.' });
+    }
 };
 
 const obterExtrato = async (req, res) => {
+    const { id: tokenId } = req.usuario;
 
+    try {
+        let saldo = 0;
+
+        const queryEntradas = `SELECT * FROM transacoes WHERE usuario_id = $1 AND tipo = 'entrada'`;
+        const listagemEntradas = await pool.query(queryEntradas, [tokenId]);
+
+        const querySaidas = `SELECT * FROM transacoes WHERE usuario_id = $1 AND tipo = 'saida'`;
+        const listagemSaidas = await pool.query(querySaidas, [tokenId]);
+
+        // if (listagemEntradas.rowCount < 1 || listagemSaidas.rowCount < 1) {
+        //     return res.status(200).json(saldo);
+        // }
+
+        const entrada = listagemEntradas.rows.reduce((acumulador, elementoAtual) => acumulador + elementoAtual.valor, saldo);
+        const saida = listagemSaidas.rows.reduce((acumulador, elementoAtual) => acumulador + elementoAtual.valor, saldo);
+
+        return res.status(200).json({entrada, saida});
+    } catch (error) {
+        console.log(error.message);
+        return res.status(500).json({ mensagem: 'Erro interno do servidor.' });
+    }
 };
-
 
 module.exports = {
     listarTransacoes,
