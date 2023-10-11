@@ -35,7 +35,7 @@ const listarTransacoes = async (req, res) => {
                 WHERE t.usuario_id = $1
             `;
             const { rows } = await pool.query(filtrarTransacoes, [tokenId]);
-            resultadoFiltragem.push(rows);
+            resultadoFiltragem.push(...rows);
         } 
 
         return res.status(200).json(resultadoFiltragem);
