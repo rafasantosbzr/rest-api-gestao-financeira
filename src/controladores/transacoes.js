@@ -2,19 +2,43 @@ const pool = require('../conexao');
 
 const listarTransacoes = async (req, res) => {
     const { id: tokenId } = req.usuario;
-    const { filtro } = req.query
+    const { filtro } = req.query;
 
     try {
-        const obterTransacoes = `SELECT * FROM transacoes WHERE usuario_id = $1`;
-        const { rows: transacoes } = await pool.query(obterTransacoes, [tokenId]);
+        let resultadoFiltragem = [];
 
-        if (filtro) {
-            const filtrarTransacoes = `SELECT * FROM transacoes WHERE usuario_id = $1 AND descricao = $2`;
-            const { rows: transacoesFiltradas }  = await pool.query(filtrarTransacoes, [tokenId, filtro]);
-            return res.status(200).json(transacoesFiltradas);
+        if (filtro && filtro.length > 1) {
+            for (let i = 0; i < filtro.length; i++) {
+                const filtrarTransacoes = `
+                    SELECT t.*, c.descricao AS categoria_nome
+                    FROM transacoes t
+                    LEFT JOIN categorias c ON t.categoria_id = c.id
+                    WHERE t.usuario_id = $1 AND c.descricao = $2
+                `;
+                const { rows } = await pool.query(filtrarTransacoes, [tokenId, filtro[i]]);
+                resultadoFiltragem.push(...rows);
             }
-    
-        return res.status(200).json(transacoes);        
+        } else if (filtro && filtro.length === 1) {
+            const filtrarTransacoes = `
+                SELECT t.*, c.descricao AS categoria_nome
+                FROM transacoes t
+                LEFT JOIN categorias c ON t.categoria_id = c.id
+                WHERE t.usuario_id = $1 AND c.descricao = $2
+            `;
+            const { rows } = await pool.query(filtrarTransacoes, [tokenId, filtro[0]]);
+            resultadoFiltragem.push(...rows);
+        } else if (!filtro) {
+            const filtrarTransacoes = `
+                SELECT t.*, c.descricao AS categoria_nome
+                FROM transacoes t
+                LEFT JOIN categorias c ON t.categoria_id = c.id
+                WHERE t.usuario_id = $1
+            `;
+            const { rows } = await pool.query(filtrarTransacoes, [tokenId]);
+            resultadoFiltragem.push(rows);
+        } 
+
+        return res.status(200).json(resultadoFiltragem);
     } catch (error) {
         return res.status(500).json({ mensagem: 'Erro interno do servidor.' });
     }
